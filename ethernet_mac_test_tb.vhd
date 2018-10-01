@@ -74,13 +74,13 @@ begin
 			mii_tx_clk_i   => mii_tx_clk_i,
 			mii_tx_er_o    => mii_tx_er_o,
 			mii_tx_en_o    => mii_tx_en_o,
-			mii_txd_o      => mii_txd_o,
+			std_ulogic_vector(mii_txd_o)      => mii_txd_o,
 			mii_rx_clk_i   => mii_rx_clk_i,
 			mii_rx_er_i    => mii_rx_er_i,
 			mii_rx_dv_i    => mii_rx_dv_i,
-			mii_rxd_i      => mii_rxd_i,
+			mii_rxd_i      => std_ulogic_vector(mii_rxd_i),
 			gmii_gtx_clk_o => gmii_gtx_clk_o,
-			led_o          => led_o,
+			std_ulogic_vector(led_o)          => led_o,
 			user_led_o     => user_led_o
 		);
 

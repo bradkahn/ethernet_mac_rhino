@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(mac-benchmark)
 find_package(Boost COMPONENTS system program_options REQUIRED)
+# https://stackoverflow.com/a/39547577
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
 add_executable(benchmark benchmark.cpp)
 target_link_libraries(benchmark ${Boost_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})

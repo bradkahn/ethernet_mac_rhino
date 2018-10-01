@@ -59,9 +59,49 @@ architecture rtl of ethernet_mac_test is
 		TEST_TX
 	);
 	-- Set to desired test
-	constant TEST_MODE : t_test_mode := TEST_LOOPBACK; 
+	constant TEST_MODE : t_test_mode := TEST_TX;
 
-	constant TEST_MODE_TX_PACKET_SIZE : positive             := 1514;
+--	constant TEST_MODE_TX_PACKET_SIZE : positive             := 1514;
+	constant TEST_MODE_TX_PACKET_SIZE : positive             := 57;
+
+    signal mac_dst      : std_ulogic_vector(47  downto 0) := x"4c_cc_6a_49_6b_65";
+    signal mac_src      : std_ulogic_vector(47  downto 0) := x"0e0e0e0e0e0b";
+    signal eth_type     : std_ulogic_vector(15  downto 0) := x"0800";
+    signal ver          : std_ulogic_vector(7   downto 0) := "01000101";
+    signal serv         : std_ulogic_vector(7   downto 0) := x"00";
+    signal tot_len      : std_ulogic_vector(15  downto 0) := x"002b";               -- IP length to 0x002b = 43
+    signal id           : std_ulogic_vector(15  downto 0) := x"0000";
+    signal flags        : std_ulogic_vector(15  downto 0) := "0100000000000000";
+    signal ttl          : std_ulogic_vector(7   downto 0) := "01000000";
+    signal protocol     : std_ulogic_vector(7   downto 0) := "00010001";
+    signal hdr_checksum : std_ulogic_vector(15  downto 0) := x"0000";               -- check this
+    signal ip_src       : std_ulogic_vector(31  downto 0) := x"c0a83601";           -- 192.168.54.1;
+    -- signal ip_dst       : std_ulogic_vector(31  downto 0) := x"c0a83664";           -- 192.168.54.100
+    signal ip_dst       : std_ulogic_vector(31  downto 0) := x"ffffffff";           -- broadcast?
+    signal prt_src      : std_ulogic_vector(15  downto 0) := x"1f40";               --8000
+    signal prt_dst      : std_ulogic_vector(15  downto 0) := x"2711";               --10001
+    signal len          : std_ulogic_vector(15  downto 0) := x"0017";               -- UDP length field to 0x0017 = 23
+    signal checksum     : std_ulogic_vector(15  downto 0) := x"0000";
+    -- signal data         : std_ulogic_vector(119 downto 0) := x"XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX";
+    signal data         : std_ulogic_vector(119 downto 0) := (others=>'1');
+
+    type t_data_array is array (0 to TEST_MODE_TX_PACKET_SIZE -1) of std_ulogic_vector(7 downto 0);
+    signal data_array: t_data_array := (mac_dst(47 downto 40),      mac_dst(39 downto 32),      mac_dst(31 downto 24),      mac_dst(23 downto 16),
+                                        mac_dst(15 downto 8),       mac_dst(7 downto 0),        mac_src(47 downto 40),      mac_src(39 downto 32),
+                                        mac_src(31 downto 24),      mac_src(23 downto 16),      mac_src(15 downto 8),       mac_src(7 downto 0),
+                                        eth_type(15 downto 8),      eth_type(7 downto 0),       ver,                        serv,
+                                        tot_len(15 downto 8),       tot_len(7 downto 0),        id(15 downto 8),            id(7 downto 0),
+                                        flags(15 downto 8),         flags(7 downto 0),          ttl,                        protocol,
+                                        hdr_checksum(15 downto 8),  hdr_checksum(7 downto 0),   ip_src(31 downto 24),       ip_src(23 downto 16),
+                                        ip_src(15 downto 8),        ip_src(7 downto 0),         ip_dst(31 downto 24),       ip_dst(23 downto 16),
+                                        ip_dst(15 downto 8),        ip_dst(7 downto 0),         prt_src(15 downto 8),       prt_src(7 downto 0),
+                                        prt_dst(15 downto 8),       prt_dst(7 downto 0),        len(15 downto 8),           len(7 downto 0),
+                                        checksum(15 downto 8),      checksum(7 downto 0),       data(119 downto 112),       data(111 downto 104),
+                                        data(103 downto 96),        data(95 downto 88),         data(87 downto 80),         data(79 downto 72),
+                                        data(71 downto 64),         data(63 downto 56),         data(55 downto 48),         data(47 downto 40),
+                                        data(39 downto 32),         data(31 downto 24),         data(23 downto 16),         data(15 downto 8),
+                                        data(7 downto 0)
+                                        );
 	type t_test_tx_state is (
 		TX_WAIT,
 		TX_WRITE_SIZE_HI,
@@ -126,7 +166,8 @@ begin
 										test_tx_data_count <= 0;
 									when TX_WRITE_DATA =>
 										tx_wr_en <= '1';
-										tx_data  <= "11111111";
+--										tx_data  <= "11111111";
+										tx_data  <= data_array(test_tx_data_count);
 										if test_tx_data_count = TEST_MODE_TX_PACKET_SIZE - 1 then
 											test_tx_state <= TX_WRITE_SIZE_HI;
 										end if;
@@ -166,7 +207,7 @@ begin
 
 	ethernet_with_fifos_inst : entity ethernet_mac.ethernet_with_fifos
 		generic map(
-			MIIM_PHY_ADDRESS      => "00111",
+			MIIM_PHY_ADDRESS      => "00001",
 			MIIM_RESET_WAIT_TICKS => 1250000 -- 10 ms at 125 MHz clock, minimum: 5 ms
 		)
 		port map(
@@ -200,8 +241,7 @@ begin
 -- Force 1000 Mbps/GMII in simulation only
 -- pragma translate_off
 , speed_override_i         => SPEED_1000MBPS
-		-- pragma translate_on			
+		-- pragma translate_on
 		);
 
 end architecture;
-
