@@ -29,7 +29,7 @@ entity ethernet_mac_test is
 		gmii_gtx_clk_o : out   std_ulogic;
 
 		led_o          : out   std_ulogic_vector(3 downto 0);
-		user_led_o     : out   std_ulogic
+		user_led_o     : out   std_ulogic_vector(1 downto 0)
 	);
 end entity;
 
@@ -82,26 +82,19 @@ architecture rtl of ethernet_mac_test is
     signal prt_dst      : std_ulogic_vector(15  downto 0) := x"2711";               --10001
     signal len          : std_ulogic_vector(15  downto 0) := x"0017";               -- UDP length field to 0x0017 = 23
     signal checksum     : std_ulogic_vector(15  downto 0) := x"0000";
-    -- signal data         : std_ulogic_vector(119 downto 0) := x"XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX_XXXX";
     signal data         : std_ulogic_vector(119 downto 0) := (others=>'1');
 
+    signal l_band_freq  : std_ulogic_vector(15  downto 0) := x"1405";
+    signal x_band_freq  : std_ulogic_vector(15  downto 0) := x"3421";
+    signal pol          : std_ulogic_vector(7  downto 0) := x"00";
+
     type t_data_array is array (0 to TEST_MODE_TX_PACKET_SIZE -1) of std_ulogic_vector(7 downto 0);
-    signal data_array: t_data_array := (mac_dst(47 downto 40),      mac_dst(39 downto 32),      mac_dst(31 downto 24),      mac_dst(23 downto 16),
-                                        mac_dst(15 downto 8),       mac_dst(7 downto 0),        mac_src(47 downto 40),      mac_src(39 downto 32),
-                                        mac_src(31 downto 24),      mac_src(23 downto 16),      mac_src(15 downto 8),       mac_src(7 downto 0),
-                                        eth_type(15 downto 8),      eth_type(7 downto 0),       ver,                        serv,
-                                        tot_len(15 downto 8),       tot_len(7 downto 0),        id(15 downto 8),            id(7 downto 0),
-                                        flags(15 downto 8),         flags(7 downto 0),          ttl,                        protocol,
-                                        hdr_checksum(15 downto 8),  hdr_checksum(7 downto 0),   ip_src(31 downto 24),       ip_src(23 downto 16),
-                                        ip_src(15 downto 8),        ip_src(7 downto 0),         ip_dst(31 downto 24),       ip_dst(23 downto 16),
-                                        ip_dst(15 downto 8),        ip_dst(7 downto 0),         prt_src(15 downto 8),       prt_src(7 downto 0),
-                                        prt_dst(15 downto 8),       prt_dst(7 downto 0),        len(15 downto 8),           len(7 downto 0),
-                                        checksum(15 downto 8),      checksum(7 downto 0),       data(119 downto 112),       data(111 downto 104),
-                                        data(103 downto 96),        data(95 downto 88),         data(87 downto 80),         data(79 downto 72),
-                                        data(71 downto 64),         data(63 downto 56),         data(55 downto 48),         data(47 downto 40),
-                                        data(39 downto 32),         data(31 downto 24),         data(23 downto 16),         data(15 downto 8),
-                                        data(7 downto 0)
-                                        );
+    signal data_array: t_data_array;
+    signal clk_slow  : std_ulogic := '0';
+    signal send_packet      : std_ulogic := '0';
+    signal sending_packet  : std_ulogic := '0';
+    signal rst_delay  : std_ulogic := '0';
+
 	type t_test_tx_state is (
 		TX_WAIT,
 		TX_WRITE_SIZE_HI,
@@ -114,11 +107,60 @@ architecture rtl of ethernet_mac_test is
 
 begin
 
+    data        <= x"0d00_0000_0000_0400_0300" & l_band_freq & x_band_freq & pol;
+    data_array  <= (mac_dst(47 downto 40),      mac_dst(39 downto 32),      mac_dst(31 downto 24),      mac_dst(23 downto 16),
+                    mac_dst(15 downto 8),       mac_dst(7 downto 0),        mac_src(47 downto 40),      mac_src(39 downto 32),
+                    mac_src(31 downto 24),      mac_src(23 downto 16),      mac_src(15 downto 8),       mac_src(7 downto 0),
+                    eth_type(15 downto 8),      eth_type(7 downto 0),       ver,                        serv,
+                    tot_len(15 downto 8),       tot_len(7 downto 0),        id(15 downto 8),            id(7 downto 0),
+                    flags(15 downto 8),         flags(7 downto 0),          ttl,                        protocol,
+                    hdr_checksum(15 downto 8),  hdr_checksum(7 downto 0),   ip_src(31 downto 24),       ip_src(23 downto 16),
+                    ip_src(15 downto 8),        ip_src(7 downto 0),         ip_dst(31 downto 24),       ip_dst(23 downto 16),
+                    ip_dst(15 downto 8),        ip_dst(7 downto 0),         prt_src(15 downto 8),       prt_src(7 downto 0),
+                    prt_dst(15 downto 8),       prt_dst(7 downto 0),        len(15 downto 8),           len(7 downto 0),
+                    checksum(15 downto 8),      checksum(7 downto 0),       data(119 downto 112),       data(111 downto 104),
+                    data(103 downto 96),        data(95 downto 88),         data(87 downto 80),         data(79 downto 72),
+                    data(71 downto 64),         data(63 downto 56),         data(55 downto 48),         data(47 downto 40),
+                    data(39 downto 32),         data(31 downto 24),         data(23 downto 16),         data(15 downto 8),
+                    data(7 downto 0)
+                    );
+
+    process (clock)
+    variable prescaler    : integer := 0;
+    begin
+        if rising_edge(clock) then
+            if prescaler = 62500000 then
+                clk_slow <= not clk_slow;
+                prescaler := 0;
+            else
+                prescaler := prescaler + 1;
+            end if;
+        end if;
+    end process;
+
+    process(clk_slow, rst_delay)
+    variable delay_count : integer range 0 to 4 := 0;
+    begin
+        if rst_delay = '1' then
+            delay_count := 0;
+            send_packet <= '0';
+        elsif rising_edge(clk_slow) then
+            if delay_count = 4 then
+                send_packet <= '1';
+            else
+                send_packet <= '0';
+                delay_count := delay_count + 1;
+            end if;
+        end if;
+    end process;
+
 	-- From left to right above the Ethernet connector
 	led_o <= (not link_up) & (not speed) & "1";
 
 	phy_reset_o <= not reset;
-	user_led_o  <= reset;
+	-- user_led_o  <= reset;
+	user_led_o(0)  <= clk_slow;
+	user_led_o(1)  <= send_packet;
 
 	speed <= speed_detected;
 
@@ -152,9 +194,10 @@ begin
 							else
 								case test_tx_state is
 									when TX_WAIT =>
-										--if one_second_elapsed = '1' then
+                                        rst_delay <= '0';
+										if send_packet = '1' then
 										test_tx_state <= TX_WRITE_SIZE_HI;
-									--end if;
+			                            end if;
 									when TX_WRITE_SIZE_HI =>
 										tx_wr_en      <= '1';
 										tx_data       <= std_ulogic_vector(to_unsigned(TEST_MODE_TX_PACKET_SIZE, 16)(15 downto 8));
@@ -169,7 +212,9 @@ begin
 --										tx_data  <= "11111111";
 										tx_data  <= data_array(test_tx_data_count);
 										if test_tx_data_count = TEST_MODE_TX_PACKET_SIZE - 1 then
-											test_tx_state <= TX_WRITE_SIZE_HI;
+											-- test_tx_state <= TX_WRITE_SIZE_HI;
+											test_tx_state <= TX_WAIT;
+                                            rst_delay <= '1';
 										end if;
 										test_tx_data_count <= test_tx_data_count + 1;
 								end case;

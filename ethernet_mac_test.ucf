@@ -1,5 +1,5 @@
-NET "user_led_o" LOC = Y3;
-#NET "o_LED_RHINO[1]" LOC = Y1;
+NET "user_led_o[0]" LOC = Y3;
+NET "user_led_o[1]" LOC = Y1;
 #NET "o_LED_RHINO[2]" LOC = W2;
 #NET "o_LED_RHINO[3]" LOC = W1;
 NET "led_o[4]" LOC = V3;
