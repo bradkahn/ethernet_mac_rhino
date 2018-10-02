@@ -94,6 +94,7 @@ architecture rtl of ethernet_mac_test is
     signal send_packet      : std_ulogic := '0';
     signal sending_packet  : std_ulogic := '0';
     signal rst_delay  : std_ulogic := '0';
+    signal toggle  : std_ulogic := '0';
 
 	type t_test_tx_state is (
 		TX_WAIT,
@@ -139,13 +140,13 @@ begin
     end process;
 
     process(clk_slow, rst_delay)
-    variable delay_count : integer range 0 to 4 := 0;
+    variable delay_count : integer range 0 to 1 := 0;
     begin
         if rst_delay = '1' then
             delay_count := 0;
             send_packet <= '0';
         elsif rising_edge(clk_slow) then
-            if delay_count = 4 then
+            if delay_count = 1 then
                 send_packet <= '1';
             else
                 send_packet <= '0';
@@ -153,6 +154,16 @@ begin
             end if;
         end if;
     end process;
+
+    toggle_freq : process(send_packet)
+    begin
+        if rising_edge(send_packet) then
+            toggle <= not toggle;
+        end if;
+    end process;
+
+    l_band_freq <= x"1405" when toggle = '1' else x"1805";
+    x_band_freq <= x"3421" when toggle = '1' else x"3821";
 
 	-- From left to right above the Ethernet connector
 	led_o <= (not link_up) & (not speed) & "1";

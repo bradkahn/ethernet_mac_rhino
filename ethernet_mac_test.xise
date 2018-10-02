@@ -181,9 +181,6 @@
       <association xil_pn:name="BehavioralSimulation" xil_pn:seqID="0"/>
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
-    <file xil_pn:name="cdc.cdc" xil_pn:type="FILE_CDC">
-      <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
-    </file>
     <file xil_pn:name="ethernet_mac/xilinx/ipcore_dir/ethernet_mac_tx_fifo_xilinx.xise" xil_pn:type="FILE_COREGENISE">
       <association xil_pn:name="Implementation" xil_pn:seqID="0"/>
     </file>
@@ -521,7 +518,6 @@
 
   <bindings>
     <binding xil_pn:location="/eth_mac_test_rhino_top" xil_pn:name="ethernet_mac_test.ucf"/>
-    <binding xil_pn:location="/eth_mac_test_rhino_top" xil_pn:name="cdc.cdc"/>
   </bindings>
 
   <libraries>
