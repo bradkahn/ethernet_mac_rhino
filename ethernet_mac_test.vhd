@@ -64,7 +64,8 @@ architecture rtl of ethernet_mac_test is
 --	constant TEST_MODE_TX_PACKET_SIZE : positive             := 1514;
 	constant TEST_MODE_TX_PACKET_SIZE : positive             := 57;
 
-    signal mac_dst      : std_ulogic_vector(47  downto 0) := x"4c_cc_6a_49_6b_65";
+--    signal mac_dst      : std_ulogic_vector(47  downto 0) := x"4c_cc_6a_49_6b_65";
+    signal mac_dst      : std_ulogic_vector(47  downto 0) := x"0014a372173f"; -- passive
     signal mac_src      : std_ulogic_vector(47  downto 0) := x"0e0e0e0e0e0b";
     signal eth_type     : std_ulogic_vector(15  downto 0) := x"0800";
     signal ver          : std_ulogic_vector(7   downto 0) := "01000101";
@@ -76,13 +77,23 @@ architecture rtl of ethernet_mac_test is
     signal protocol     : std_ulogic_vector(7   downto 0) := "00010001";
     signal hdr_checksum : std_ulogic_vector(15  downto 0) := x"0000";               -- check this
     signal ip_src       : std_ulogic_vector(31  downto 0) := x"c0a83601";           -- 192.168.54.1;
-    -- signal ip_dst       : std_ulogic_vector(31  downto 0) := x"c0a83664";           -- 192.168.54.100
-    signal ip_dst       : std_ulogic_vector(31  downto 0) := x"ffffffff";           -- broadcast?
+    signal ip_dst       : std_ulogic_vector(31  downto 0) := x"c0a83664";           -- 192.168.54.100
+--    signal ip_dst       : std_ulogic_vector(31  downto 0) := x"ffffffff";           -- broadcast?
     signal prt_src      : std_ulogic_vector(15  downto 0) := x"1f40";               --8000
     signal prt_dst      : std_ulogic_vector(15  downto 0) := x"2711";               --10001
     signal len          : std_ulogic_vector(15  downto 0) := x"0017";               -- UDP length field to 0x0017 = 23
-    signal checksum     : std_ulogic_vector(15  downto 0) := x"0000";
+    signal checksum     : std_ulogic_vector(15  downto 0) := x"6792"; -- copy from pc calc
     signal data         : std_ulogic_vector(119 downto 0) := (others=>'1');
+    signal udp_checksum_32 : unsigned(31 downto 0) := (others=>'0');
+	COMPONENT calc_ipv4_checksum
+	PORT(
+		clk : IN std_logic;
+		data : IN std_logic_vector(159 downto 0);
+		reset : IN std_logic;
+		ready : OUT std_logic;
+		checksum : OUT std_logic_vector(15 downto 0)
+		);
+	END COMPONENT;
 
     signal l_band_freq  : std_ulogic_vector(15  downto 0) := x"1405";
     signal x_band_freq  : std_ulogic_vector(15  downto 0) := x"3421";
@@ -126,6 +137,49 @@ begin
                     data(7 downto 0)
                     );
 
+
+    Inst_calc_ipv4_checksum: calc_ipv4_checksum PORT MAP(
+    clk => clock,
+    data => std_logic_vector(ip_dst(15 downto 8))         & std_logic_vector(ip_dst(7 downto 0))        &
+            std_logic_vector(ip_src(15 downto 8))         & std_logic_vector(ip_src(7 downto 0))        & std_logic_vector(ip_dst(31 downto 24)) & std_logic_vector(ip_dst(23 downto 16)) &
+            std_logic_vector(hdr_checksum(15 downto 8))   & std_logic_vector(hdr_checksum(7 downto 0))  & std_logic_vector(ip_src(31 downto 24)) & std_logic_vector(ip_src(23 downto 16)) &
+            std_logic_vector(flags(15 downto 8))          & std_logic_vector(flags(7 downto 0))         & std_logic_vector(ttl)                  & std_logic_vector(protocol) &
+            std_logic_vector(tot_len(15 downto 8))        & std_logic_vector(tot_len(7 downto 0))       & std_logic_vector(id(15 downto 8))      & std_logic_vector(id(7 downto 0)) &
+            std_logic_vector(ver)                         & std_logic_vector(serv),
+    ready => open,
+    std_ulogic_vector(checksum) => hdr_checksum,
+    reset => '0'
+    );
+
+    udp_checksum_32 <= (
+                        (x"0000"&unsigned(ip_src(31 downto 16)))    +       -- c0a8
+                        (x"0000"&unsigned(ip_src(15 downto 0)))     +       -- 3601
+                        (x"0000"&unsigned(ip_dst(31 downto 16)))    +       -- c0a8
+                        (x"0000"&unsigned(ip_dst(15 downto 0)))     +       -- 3664
+                        (x"0000"&(x"00"&unsigned(protocol)))        +       -- 0011
+                        (x"0000"&unsigned(len) )                    +       -- 0017
+                        (x"0000"&unsigned(prt_src(15 downto 0)))    +       -- 1f40
+                        (x"0000"&unsigned(prt_dst(15 downto 0)))    +       -- 2711
+                        (x"0000"&unsigned(len))                     +       -- 0017
+                        (x"0000"&unsigned(data(119 downto 104)))    +       -- 0d00
+                        (x"0000"&unsigned(data(103 downto 88)))     +       -- 0000
+                        (x"0000"&unsigned(data(87 downto 72)))      +       -- 0000
+                        (x"0000"&unsigned(data(71 downto 56)))      +       -- 0400
+                        (x"0000"&unsigned(data(55 downto 40)))      +       -- 0300
+                        (x"0000"&unsigned(data(39 downto 24)))      +       -- 1405
+                        (x"0000"&unsigned(data(23 downto 8)))       +       -- 3421
+                        (x"0000"&(unsigned(data(7 downto 0))&"00000000"))   -- 0000
+                       );
+                                                                        -------
+                                                                        -- = 2906b
+                                                                        -------
+                                                                        -- 0002 + 906b
+                                                                        -- = 906d
+                                                                        -- not(906d)
+                                                                        -- = 6f92
+    checksum <= std_ulogic_vector(not((udp_checksum_32(31 downto 16)) + udp_checksum_32(15 downto 0)));
+
+
     process (clock)
     variable prescaler    : integer := 0;
     begin
@@ -164,6 +218,7 @@ begin
 
     l_band_freq <= x"1405" when toggle = '1' else x"1805";
     x_band_freq <= x"3421" when toggle = '1' else x"3821";
+    --checksum <= x"6f92" when toggle = '1' else x"6792";
 
 	-- From left to right above the Ethernet connector
 	led_o <= (not link_up) & (not speed) & "1";

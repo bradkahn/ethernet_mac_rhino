@@ -40,7 +40,7 @@
         <port polarity="Input" name="GIGE_RX_CLK" />
         <port polarity="Output" name="GIGE_TXD(7:0)" />
         <blockdef name="clk_wiz_v3_6">
-            <timestamp>2018-10-2T11:3:50</timestamp>
+            <timestamp>2018-10-3T12:38:4</timestamp>
             <rect width="544" x="32" y="32" height="1056" />
             <line x2="32" y1="112" y2="112" x1="0" />
             <line x2="32" y1="144" y2="144" x1="0" />
@@ -70,9 +70,9 @@
             <line x2="448" y1="-32" y2="-32" x1="384" />
         </blockdef>
         <block symbolname="clk_wiz_v3_6" name="XLXI_2">
-            <blockpin signalname="i_CLK_P" name="CLK_IN_P" />
-            <blockpin signalname="i_CLK_N" name="CLK_IN_N" />
-            <blockpin signalname="XLXN_25" name="CLK_125" />
+            <blockpin signalname="i_CLK_P" name="clk_in1_p" />
+            <blockpin signalname="i_CLK_N" name="clk_in1_n" />
+            <blockpin signalname="XLXN_25" name="clk_out1" />
         </block>
         <block symbolname="ethernet_mac_test" name="XLXI_5">
             <blockpin signalname="XLXN_25" name="clock_125_i" />
